@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GitHub Issue Analyzer</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+
+        .main-card {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+            margin-bottom: 30px;
+        }
+
+        .form-section {
+            padding: 40px;
+            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        }
+
+        .form-group {
+            margin-bottom: 24px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .form-group input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e9ecef;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .form-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .analyze-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 14px 32px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+        }
+
+        .analyze-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(102, 126, 234, 0.3);
+        }
+
+        .analyze-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        .results-section {
+            display: none;
+            padding: 40px;
+        }
+
+        .result-header {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            margin-bottom: 30px;
+            gap: 15px;
+        }
+
+        .result-title {
+            font-size: 1.8em;
+            font-weight: 700;
+            color: #333;
+            flex: 1;
+        }
+
+        .copy-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .copy-btn:hover {
+            background: #218838;
+            transform: translateY(-1px);
+        }
+
+        .copy-btn.copied {
+            background: #17a2b8;
+        }
+
+        .analysis-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .analysis-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .analysis-card {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+            border-left: 4px solid #667eea;
+        }
+
+        .analysis-card h3 {
+            color: #333;
+            margin-bottom: 12px;
+            font-size: 1.1em;
+            font-weight: 600;
+        }
+
+        .analysis-card .content {
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .type-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .type-bug {
+            background: #fee;
+            color: #d73a49;
+        }
+
+        .type-feature_request {
+            background: #e6ffed;
+            color: #28a745;
+        }
+
+        .type-documentation {
+            background: #fff5b4;
+            color: #b08800;
+        }
+
+        .type-question {
+            background: #f0f6ff;
+            color: #0366d6;
+        }
+
+        .type-other {
+            background: #f6f8fa;
+            color: #586069;
+        }
+
+        .priority-score {
+            font-size: 1.5em;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }
+
+        .priority-1,
+        .priority-2 {
+            color: #28a745;
+        }
+
+        .priority-3 {
+            color: #ffc107;
+        }
+
+        .priority-4,
+        .priority-5 {
+            color: #dc3545;
+        }
+
+        .labels-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .label-tag {
+            background: #0366d6;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 16px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+
+        .metadata-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+            border: 1px solid #e9ecef;
+        }
+
+        .metadata-title {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .metadata-grid {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 8px 16px;
+            font-size: 14px;
+        }
+
+        .metadata-label {
+            font-weight: 500;
+            color: #666;
+        }
+
+        .metadata-value {
+            color: #333;
+        }
+
+        .error-section {
+            display: none;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 16px 20px;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+            margin-bottom: 20px;
+        }
+
+        .try-again-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .github-link {
+            color: #0366d6;
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .github-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 GitHub Issue Analyzer</h1>
+            <p>AI-powered analysis and structured summaries for GitHub issues</p>
+        </div>
+
+        <div class="main-card">
+            <div class="form-section">
+                <form id="analyzeForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="repoUrl">GitHub Repository URL</label>
+                            <input type="url" id="repoUrl" name="repoUrl"
+                                placeholder="https://github.com/facebook/react" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="issueNumber">Issue Number</label>
+                            <input type="number" id="issueNumber" name="issueNumber" placeholder="123" min="1" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="analyze-btn" id="analyzeBtn">
+                        Analyze Issue
+                    </button>
+                </form>
+
+                <div class="loading" id="loading">
+                    <div class="spinner"></div>
+                    Analyzing issue... This may take a few moments.
+                </div>
+            </div>
+
+            <div class="results-section" id="results">
+                <div class="result-header">
+                    <h2 class="result-title">Analysis Results</h2>
+                    <button class="copy-btn" id="copyBtn">Copy JSON</button>
+                </div>
+
+                <div class="analysis-grid">
+                    <div class="analysis-card">
+                        <h3>📋 Summary</h3>
+                        <div class="content" id="summary"></div>
+                    </div>
+
+                    <div class="analysis-card">
+                        <h3>🏷️ Type</h3>
+                        <div class="content" id="type"></div>
+                    </div>
+
+                    <div class="analysis-card">
+                        <h3>⚡ Priority Score</h3>
+                        <div class="content" id="priority"></div>
+                    </div>
+
+                    <div class="analysis-card">
+                        <h3>🎯 Suggested Labels</h3>
+                        <div class="content" id="labels"></div>
+                    </div>
+                </div>
+
+                <div class="analysis-card" style="margin-bottom: 0;">
+                    <h3>💥 Potential Impact</h3>
+                    <div class="content" id="impact"></div>
+                </div>
+
+                <div class="metadata-section">
+                    <div class="metadata-title">Issue Metadata</div>
+                    <div class="metadata-grid" id="metadata"></div>
+                </div>
+            </div>
+
+            <div class="error-section" id="error">
+                <div class="error-message" id="errorMessage"></div>
+                <button class="try-again-btn" id="tryAgainBtn">Try Again</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentAnalysis = null;
+
+        // Form submission handler
+        document.getElementById('analyzeForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+
+            const repoUrl = document.getElementById('repoUrl').value.trim();
+            const issueNumber = document.getElementById('issueNumber').value.trim();
+
+            if (!repoUrl || !issueNumber) {
+                showError('Please fill in both repository URL and issue number.');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                const response = await fetch('/api/analyze', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        repo_url: repoUrl,
+                        issue_number: parseInt(issueNumber)
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Analysis failed');
+                }
+
+                currentAnalysis = data;
+                showResults(data);
+
+            } catch (error) {
+                console.error('Analysis error:', error);
+                showError(error.message || 'An unexpected error occurred. Please try again.');
+            }
+        });
+
+        // Copy JSON functionality
+        document.getElementById('copyBtn').addEventListener('click', function () {
+            if (!currentAnalysis) return;
+
+            const jsonString = JSON.stringify(currentAnalysis.analysis, null, 2);
+
+            navigator.clipboard.writeText(jsonString).then(() => {
+                const btn = document.getElementById('copyBtn');
+                const originalText = btn.textContent;
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+
+                setTimeout(() => {
+                    btn.textContent = originalText;
+                    btn.classList.remove('copied');
+                }, 2000);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = jsonString;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+            });
+        });
+
+        // Try again button
+        document.getElementById('tryAgainBtn').addEventListener('click', function () {
+            hideError();
+            hideResults();
+        });
+
+        function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+            hideResults();
+            hideError();
+        }
+
+        function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = false;
+        }
+
+        function showResults(data) {
+            hideLoading();
+
+            const analysis = data.analysis;
+            const metadata = data.metadata;
+
+            // Populate analysis results
+            document.getElementById('summary').textContent = analysis.summary;
+
+            // Type with badge
+            const typeElement = document.getElementById('type');
+            typeElement.innerHTML = `<span class="type-badge type-${analysis.type}">${analysis.type.replace('_', ' ')}</span>`;
+
+            // Priority with color coding
+            const priorityElement = document.getElementById('priority');
+            const priorityNumber = analysis.priority_score.charAt(0);
+            priorityElement.innerHTML = `<div class="priority-score priority-${priorityNumber}">${analysis.priority_score}</div>`;
+
+            // Labels
+            const labelsElement = document.getElementById('labels');
+            labelsElement.innerHTML = `
+                <div class="labels-container">
+                    ${analysis.suggested_labels.map(label =>
+                `<span class="label-tag">${label}</span>`
+            ).join('')}
+                </div>
+            `;
+
+            // Impact
+            document.getElementById('impact').textContent = analysis.potential_impact;
+
+            // Metadata
+            const metadataElement = document.getElementById('metadata');
+            metadataElement.innerHTML = `
+                <span class="metadata-label">Repository:</span>
+                <span class="metadata-value">
+                    <a href="${metadata.repository}" target="_blank" class="github-link">${metadata.repository}</a>
+                </span>
+                <span class="metadata-label">Issue:</span>
+                <span class="metadata-value">
+                    <a href="${metadata.repository}/issues/${metadata.issue_number}" target="_blank" class="github-link">
+                        #${metadata.issue_number} - ${metadata.issue_title}
+                    </a>
+                </span>
+                <span class="metadata-label">State:</span>
+                <span class="metadata-value">${metadata.issue_state}</span>
+                <span class="metadata-label">Analyzed:</span>
+                <span class="metadata-value">${new Date(metadata.analyzed_at).toLocaleString()}</span>
+                <span class="metadata-label">Existing Labels:</span>
+                <span class="metadata-value">${metadata.existing_labels.length > 0 ? metadata.existing_labels.join(', ') : 'None'}</span>
+            `;
+
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function hideResults() {
+            document.getElementById('results').style.display = 'none';
+        }
+
+        function showError(message) {
+            hideLoading();
+            document.getElementById('errorMessage').textContent = message;
+            document.getElementById('error').style.display = 'block';
+        }
+
+        function hideError() {
+            document.getElementById('error').style.display = 'none';
+        }
+
+        // Add some helpful examples on page load
+        window.addEventListener('load', function () {
+            const repoInput = document.getElementById('repoUrl');
+            const issueInput = document.getElementById('issueNumber');
+
+            // Add placeholder examples that rotate
+            const examples = [
+                { repo: 'https://github.com/facebook/react', issue: '25' },
+                { repo: 'https://github.com/microsoft/vscode', issue: '100' },
+                { repo: 'https://github.com/nodejs/node', issue: '50' }
+            ];
+
+            let currentExample = 0;
+
+            function updatePlaceholders() {
+                const example = examples[currentExample];
+                repoInput.placeholder = example.repo;
+                issueInput.placeholder = example.issue;
+                currentExample = (currentExample + 1) % examples.length;
+            }
+
+            // Update placeholders every 3 seconds
+            setInterval(updatePlaceholders, 3000);
+        });
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function (e) {
+            // Ctrl/Cmd + Enter to submit form
+            if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+                document.getElementById('analyzeForm').requestSubmit();
+            }
+
+            // Ctrl/Cmd + C when results are visible to copy JSON
+            if ((e.ctrlKey || e.metaKey) && e.key === 'c' && currentAnalysis && document.getElementById('results').style.display === 'block') {
+                if (!e.target.matches('input, textarea')) {
+                    e.preventDefault();
+                    document.getElementById('copyBtn').click();
+                }
+            }
+        });
+    </script>
+</body>
+
+</html>
